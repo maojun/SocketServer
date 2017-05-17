@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="http://www.padual.com/Java/logback.xsd">
+	<appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder 
+			by default -->
+		<encoder>
+			<pattern>%p [%t] %d %c %M %L: %m%n</pattern>
+		</encoder>
+	</appender>
+
+
+	<!-- Daily Rolling File Appender that compresses old files -->
+	<appender name="file"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>D:/SocketServer_Log/SocketServer_Log.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>D:/SocketServer_Log/SocketServer_Log.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+			<maxHistory>30</maxHistory>
+		</rollingPolicy>
+		<encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+			<pattern>%p [%t] %d %c %M %L: %m%n</pattern>
+		</encoder>
+	</appender>
+
+
+	<logger name="com.gable.socket" level="INFO" />
+	<logger name="org.apache" additivity="true" level="INFO" />
+	<!-- 3rd party loggers end -->
+	<root level="INFO">
+		<appender-ref ref="console" />
+		<appender-ref ref="file" />
+	</root>
+</configuration>
