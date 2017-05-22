@@ -54,7 +54,7 @@ public class SocketServerServiceImpl implements SocketServerService {
 				// 轮询开始时间
 				long startWaitTime = System.currentTimeMillis();
 				// 轮询抓取客户端匹配信息
-				log.info("_____SocketServerServiceImpl3,socket端口:" + port+ "开始抓取客户端返回结果,流水号:" + JsonUtil.toJsonString(id));
+				log.info("_____SocketServerServiceImpl3,socket端口:" + port+ "开始抓取客户端返回结果,开始时间："+startWaitTime+",流水号:" + JsonUtil.toJsonString(id));
 				while (object == null && System.currentTimeMillis() - startWaitTime < MaxTime) {
 					InputStream in = socket.getInputStream();
 					if (in.available() > 0) {
@@ -75,7 +75,7 @@ public class SocketServerServiceImpl implements SocketServerService {
 				log.error("_____SocketServerServiceImpl5,流水号："+JsonUtil.toJsonString(id)+"抓取客户端返回结果异常：" + e.toString());
 			}
 		}
-		log.info("_____SocketServerServiceImpl6,流水号："+JsonUtil.toJsonString(id)+"抓取客户端超时");
+		log.info("_____SocketServerServiceImpl6,流水号："+JsonUtil.toJsonString(id)+"抓取客户端超时,结束时间："+System.currentTimeMillis());
 		return null;
 	}
 }
