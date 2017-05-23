@@ -82,6 +82,7 @@ public class ScoketController {
 			// 组装业务数据，发送给客户端
 			// 根据不同的端口，写入对应的socket客户端
 			socketServerService.outPutSocketToClient(port, sb);
+			Thread.sleep(10L);
 			// 抓取客户端返回的结果
 			SocketBean resultScoket = socketServerService.inPutSocketFromClient(InitUtil.hospitalIdPortMap.get(hId),
 					sb.getUid());
