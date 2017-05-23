@@ -76,7 +76,10 @@ public class SocketBean implements Serializable{
 		this.serviceURL = serviceURL; 
 		this.param = param;
 	}
-	
+	public SocketBean(Integer code, String errorMsg) {
+		this.code = code;
+		this.errorMsg = errorMsg;
+	}
 	private SocketBean() {
 	}
 }

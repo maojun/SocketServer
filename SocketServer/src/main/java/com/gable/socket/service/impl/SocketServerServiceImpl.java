@@ -76,6 +76,7 @@ public class SocketServerServiceImpl implements SocketServerService {
 			}
 		}
 		log.info("_____SocketServerServiceImpl6,流水号："+JsonUtil.toJsonString(id)+"抓取客户端超时,结束时间："+System.currentTimeMillis());
-		return null;
+		object = new SocketBean(0, "内部超时！");
+		return object;
 	}
 }
