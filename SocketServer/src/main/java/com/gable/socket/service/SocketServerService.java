@@ -16,6 +16,8 @@ public interface SocketServerService {
 	 * @param obj
 	 */
 	public void outPutSocketToClient(Integer port,SocketBean obj);
+	public void outPutSocketToClient1(Integer port,SocketBean obj);
+	public void outPutSocketToClient2(Integer port,SocketBean obj);
 	
 	/**
 	 * 抓取客户端返回值
@@ -24,4 +26,6 @@ public interface SocketServerService {
 	 * @return
 	 */
 	public SocketBean inPutSocketFromClient(Integer port,UUID id);
+	public SocketBean inPutSocketFromClient1(Integer port,UUID id);
+	public SocketBean inPutSocketFromClient2(Integer port,UUID id);
 }
