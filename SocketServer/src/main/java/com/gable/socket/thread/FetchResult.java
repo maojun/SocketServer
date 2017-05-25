@@ -37,7 +37,7 @@ public class FetchResult implements Callable<SocketBean> {
 			object = InitUtil.resultMap.get(uid);
 		}
 		log.info("_____FetchResult2結束筛选,结束时间：" + System.currentTimeMillis() + ",流水号:"
-				+ JsonUtil.toJsonString(uid));
+				+ JsonUtil.toJsonString(uid)+"结果："+JsonUtil.toJsonString(object));
 		return object;
 	}
 

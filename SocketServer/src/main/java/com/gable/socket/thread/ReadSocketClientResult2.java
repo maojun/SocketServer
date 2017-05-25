@@ -45,7 +45,7 @@ public class ReadSocketClientResult2 implements Runnable {
 				while (object == null && System.currentTimeMillis() - startWaitTime < MaxTime) {
 					InputStream in = socket.getInputStream();
 					if (in.available() > 0) {
-						ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(socket.getInputStream()));
+						ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
 						Object obj = ois.readObject();
 						//跳过心跳包  "Heartbeat" 为心跳包发送过来的数据
 						if (obj != null && !obj.toString().equals("Heartbeat")) {

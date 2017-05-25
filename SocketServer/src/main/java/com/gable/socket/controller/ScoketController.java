@@ -4,6 +4,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -41,6 +42,8 @@ public class ScoketController {
 	public JsonReturn socketRequest(HttpServletRequest request) {
 		// 返回结果
 		JsonReturn jsonReturn = new JsonReturn();
+		// socket传输对象
+		SocketBean sb = null;
 		try {
 			// 获取请求参数
 			String hospitalId = request.getHeader("hospitalId"); // 医院ID
@@ -81,23 +84,26 @@ public class ScoketController {
 			log.info("_____ScoketController,socketRequest请求参数，body:" + JsonUtil.toJsonString(map));
 
 			// socket传输对象
-			SocketBean sb = new SocketBean(serviceURL, JsonUtil.toJsonString(map));
-			//socketClient返回结果对象
+			sb = new SocketBean(serviceURL, JsonUtil.toJsonString(map));
+			// socketClient返回结果对象
 			SocketBean resultScoket = null;
 			// 组装业务数据，发送给客户端
 			// 根据不同的端口，写入对应的socket客户端
 			InitUtil.executorService.execute(new WriteSocketClientParam(port, sb));
-			//短暂的间隔一下，保证写入客户端的操作在抓取客户端的操作之前
+			// 短暂的间隔一下，保证写入客户端的操作在抓取客户端的操作之前
 			Thread.sleep(100L);
-			
+
 			InitUtil.executorService.execute(new ReadSocketClientResult2(port, sb.getUid(), MaxTime));
-			//短暂的间隔一下，保证抓取客户端的结果在筛选返回结果之前
+			// 短暂的间隔一下，保证抓取客户端的结果在筛选返回结果之前
 			Thread.sleep(100L);
-			
-			//筛选对应的结果返回
+
+			// 筛选对应的结果返回
 			Future<SocketBean> fetch = InitUtil.executorService.submit(new FetchResult(sb.getUid(), MaxTime));
-			resultScoket = fetch.get();
-			
+
+			// 短暂的间隔一下，保证抓取客户端的结果在筛选返回结果之前
+			Thread.sleep(100L);
+			//在限制时间内无法取到结果退出，避免线程阻塞
+			resultScoket = fetch.get(MaxTime, TimeUnit.MILLISECONDS);
 			// 抓取客户端返回的结果
 			if (resultScoket != null) {
 				Integer code = resultScoket.getCode();
@@ -112,7 +118,9 @@ public class ScoketController {
 			jsonReturn.setRet(0);
 			jsonReturn.setMsg(e.getMessage());
 		}
-		System.out.println(JsonUtil.toJsonString(jsonReturn));
+		// 移除结果
+		if (sb != null)
+			InitUtil.resultMap.remove(sb.getUid());
 		return jsonReturn;
 	}
 
@@ -131,4 +139,5 @@ public class ScoketController {
 		json.setMsg(result);
 		return json;
 	}
+	
 }
