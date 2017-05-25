@@ -5,6 +5,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.Executors;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
@@ -15,6 +17,7 @@ import org.springframework.boot.context.web.SpringBootServletInitializer;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
+import com.gable.socket.bean.SocketBean;
 import com.gable.socket.utils.InitUtil;
 
 @EnableAutoConfiguration
@@ -35,10 +38,13 @@ public class Application extends SpringBootServletInitializer implements Initial
 		// hospitalId_socket端口map
 		String[] portArray = port.split(",");
 		InitUtil.hospitalIdPortMap = mappingHospital(portArray);
-
+		//初始化无界线程池，JVM自动创建线程，回收线程
+		InitUtil.executorService = Executors.newCachedThreadPool();
+		
+		InitUtil.resultMap = new HashMap<UUID,SocketBean>();
 		
 		for(Map.Entry<Long, Integer> hid_port : InitUtil.hospitalIdPortMap.entrySet()){
-			new Thread(new Runnable() {
+			InitUtil.executorService.execute(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -53,7 +59,7 @@ public class Application extends SpringBootServletInitializer implements Initial
 						e.printStackTrace();
 					}
 				}
-			}).start();
+			});
 		}
 	}
 	

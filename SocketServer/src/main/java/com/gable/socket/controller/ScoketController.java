@@ -3,11 +3,12 @@ package com.gable.socket.controller;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Future;
 
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +16,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.gable.socket.bean.JsonReturn;
 import com.gable.socket.bean.SocketBean;
-import com.gable.socket.service.SocketServerService;
+import com.gable.socket.thread.FetchResult;
+import com.gable.socket.thread.ReadSocketClientResult2;
+import com.gable.socket.thread.WriteSocketClientParam;
 import com.gable.socket.utils.InitUtil;
 import com.gable.socket.utils.JsonUtil;
 
@@ -29,21 +32,21 @@ import com.gable.socket.utils.JsonUtil;
 public class ScoketController {
 	Logger log = Logger.getLogger(ScoketController.class);
 
-	@Autowired
-	SocketServerService socketServerService;
+	// 最大等待时间,默认四秒
+	@Value("${MaxTime:4000}")
+	private Long MaxTime;
 
 	@RequestMapping(value = "/socketRequest", produces = "application/json; charset=utf-8")
 	@ResponseBody
 	public JsonReturn socketRequest(HttpServletRequest request) {
 		// 返回结果
 		JsonReturn jsonReturn = new JsonReturn();
-
 		try {
 			// 获取请求参数
 			String hospitalId = request.getHeader("hospitalId"); // 医院ID
 			String serviceURL = request.getHeader("serviceURL"); // 请求转发地址
 			String haveFile = request.getHeader("haveFile"); // 是否包含文件
-			
+
 			// 基本参数校验
 			if (StringUtils.isEmpty(hospitalId) || StringUtils.isEmpty(serviceURL) || StringUtils.isEmpty(haveFile)) {
 				log.error("hospitalId,serviceURL,haveFile不能为空");
@@ -52,14 +55,14 @@ public class ScoketController {
 			// 校验医院ID 和socket端口的映射关系
 			Long hId = Long.parseLong(hospitalId);
 			Integer port = InitUtil.hospitalIdPortMap.get(hId);
-			if(port == null || port < 1){
+			if (port == null || port < 1) {
 				log.error("hospitalId无效,映射socket失败");
 				return new JsonReturn(0, "hospitalId无效,映射socket失败");
 			}
-			
+
 			// 获取所有的业务参数
 			Map<String, Object> map = new HashMap<String, Object>();
-						
+
 			// 有文件时需要校验文件地址
 			if (haveFile.equals("Y")) {
 				String fileAddress = request.getParameter("fileAddress");
@@ -69,23 +72,33 @@ public class ScoketController {
 				}
 				map.put("fileAddress", fileAddress);
 			}
-			
+
 			Enumeration<String> parameterNames = request.getParameterNames();
 			while (parameterNames.hasMoreElements()) {
 				String paraName = (String) parameterNames.nextElement();
 				map.put(paraName, request.getParameter(paraName));
 			}
-			log.info("_____ScoketController,socketRequest请求参数，body:"+JsonUtil.toJsonString(map));
-			
+			log.info("_____ScoketController,socketRequest请求参数，body:" + JsonUtil.toJsonString(map));
+
 			// socket传输对象
 			SocketBean sb = new SocketBean(serviceURL, JsonUtil.toJsonString(map));
+			//socketClient返回结果对象
+			SocketBean resultScoket = null;
 			// 组装业务数据，发送给客户端
 			// 根据不同的端口，写入对应的socket客户端
-			socketServerService.outPutSocketToClient(port, sb);
-			Thread.sleep(10L);
+			InitUtil.executorService.execute(new WriteSocketClientParam(port, sb));
+			//短暂的间隔一下，保证写入客户端的操作在抓取客户端的操作之前
+			Thread.sleep(100L);
+			
+			InitUtil.executorService.execute(new ReadSocketClientResult2(port, sb.getUid(), MaxTime));
+			//短暂的间隔一下，保证抓取客户端的结果在筛选返回结果之前
+			Thread.sleep(100L);
+			
+			//筛选对应的结果返回
+			Future<SocketBean> fetch = InitUtil.executorService.submit(new FetchResult(sb.getUid(), MaxTime));
+			resultScoket = fetch.get();
+			
 			// 抓取客户端返回的结果
-			SocketBean resultScoket = socketServerService.inPutSocketFromClient(InitUtil.hospitalIdPortMap.get(hId),
-					sb.getUid());
 			if (resultScoket != null) {
 				Integer code = resultScoket.getCode();
 				jsonReturn.setRet(code);
@@ -95,10 +108,11 @@ public class ScoketController {
 				jsonReturn.setRet(2);
 			}
 		} catch (Exception e) {
-			log.error("_____ScoketController,socketRequest异常："+e.toString());
+			log.error("_____ScoketController,socketRequest异常：" + e.toString());
 			jsonReturn.setRet(0);
 			jsonReturn.setMsg(e.getMessage());
 		}
+		System.out.println(JsonUtil.toJsonString(jsonReturn));
 		return jsonReturn;
 	}
 
