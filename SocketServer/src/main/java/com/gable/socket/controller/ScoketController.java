@@ -111,12 +111,13 @@ public class ScoketController {
 				jsonReturn.setData(resultScoket.getResult());
 				jsonReturn.setMsg(resultScoket.getErrorMsg());
 			} else {
-				jsonReturn.setRet(2);
+				jsonReturn.setRet(0);
+				jsonReturn.setMsg("网络异常,请稍后再试");
 			}
 		} catch (Exception e) {
 			log.error("_____ScoketController,socketRequest异常：" + e.toString());
 			jsonReturn.setRet(0);
-			jsonReturn.setMsg(e.getMessage());
+			jsonReturn.setMsg("网络异常,请稍后再试!");
 		}
 		// 移除结果
 		if (sb != null)
