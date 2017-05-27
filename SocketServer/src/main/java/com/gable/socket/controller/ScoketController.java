@@ -110,6 +110,7 @@ public class ScoketController {
 				jsonReturn.setRet(code);
 				jsonReturn.setData(resultScoket.getResult());
 				jsonReturn.setMsg(resultScoket.getErrorMsg());
+				InitUtil.resultMap.remove(resultScoket.getUid());
 			} else {
 				jsonReturn.setRet(0);
 				jsonReturn.setMsg("网络异常,请稍后再试");
@@ -120,8 +121,8 @@ public class ScoketController {
 			jsonReturn.setMsg("网络异常,请稍后再试!");
 		}
 		// 移除结果
-		if (sb != null)
-			InitUtil.resultMap.remove(sb.getUid());
+//		if (sb != null)
+			log.info("==========服务端缓存结果集："+JsonUtil.toJsonString(InitUtil.resultMap));
 		return jsonReturn;
 	}
 
