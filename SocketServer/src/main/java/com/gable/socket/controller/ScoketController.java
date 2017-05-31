@@ -17,8 +17,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.gable.socket.bean.JsonReturn;
 import com.gable.socket.bean.SocketBean;
+import com.gable.socket.bean.SocketObject;
 import com.gable.socket.thread.FetchResult;
-import com.gable.socket.thread.ReadSocketClientResult2;
+import com.gable.socket.thread.ReadSocketClientResult;
 import com.gable.socket.thread.WriteSocketClientParam;
 import com.gable.socket.utils.InitUtil;
 import com.gable.socket.utils.JsonUtil;
@@ -89,11 +90,14 @@ public class ScoketController {
 			SocketBean resultScoket = null;
 			// 组装业务数据，发送给客户端
 			// 根据不同的端口，写入对应的socket客户端
-			InitUtil.executorService.execute(new WriteSocketClientParam(port, sb));
+			log.info("befor.size:"+InitUtil.skMap.get(port).size());
+			SocketObject socketObject = InitUtil.getSocketObject(port);
+			log.info("after.size:"+InitUtil.skMap.get(port).size());
+			InitUtil.executorService.execute(new WriteSocketClientParam(port, sb, socketObject));
 			// 短暂的间隔一下，保证写入客户端的操作在抓取客户端的操作之前
 			Thread.sleep(100L);
 
-			InitUtil.executorService.execute(new ReadSocketClientResult2(port, sb.getUid(), MaxTime));
+			InitUtil.executorService.execute(new ReadSocketClientResult(port, sb.getUid(), MaxTime,socketObject));
 			// 短暂的间隔一下，保证抓取客户端的结果在筛选返回结果之前
 			Thread.sleep(100L);
 
@@ -102,7 +106,7 @@ public class ScoketController {
 
 			// 短暂的间隔一下，保证抓取客户端的结果在筛选返回结果之前
 			Thread.sleep(100L);
-			//在限制时间内无法取到结果退出，避免线程阻塞
+			// 在限制时间内无法取到结果退出，避免线程阻塞
 			resultScoket = fetch.get(MaxTime, TimeUnit.MILLISECONDS);
 			// 抓取客户端返回的结果
 			if (resultScoket != null) {
@@ -121,8 +125,8 @@ public class ScoketController {
 			jsonReturn.setMsg("网络异常,请稍后再试!");
 		}
 		// 移除结果
-//		if (sb != null)
-			log.info("==========服务端缓存结果集："+JsonUtil.toJsonString(InitUtil.resultMap));
+		// if (sb != null)
+		log.info("==========服务端缓存结果集：" + JsonUtil.toJsonString(InitUtil.resultMap));
 		return jsonReturn;
 	}
 
@@ -141,5 +145,4 @@ public class ScoketController {
 		json.setMsg(result);
 		return json;
 	}
-	
 }
