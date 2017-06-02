@@ -49,7 +49,15 @@ public class InitUtil {
 			list.add(so);
 			skMap.put(port, list);
 		}else{
-			skMap.get(port).add(so);
+			//清空之前连接,否则客户端多次重启。服务端的缓存对象就是无效的
+			if(skMap.get(port).size() >= 20){
+				skMap.remove(port);
+				List<SocketObject> list = new ArrayList<SocketObject>();
+				list.add(so);
+				skMap.put(port, list);
+			}else{
+				skMap.get(port).add(so);
+			}
 		}
 	}
 	
