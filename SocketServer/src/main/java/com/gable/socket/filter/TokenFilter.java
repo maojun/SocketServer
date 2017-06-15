@@ -20,7 +20,7 @@ import com.gable.socket.utils.JsonUtil;
 import com.gable.socket.utils.MD5Util;
 
 @Order(1)
-@WebFilter(filterName = "tokenFilter", urlPatterns = "/*")
+@WebFilter(filterName = "tokenFilter", urlPatterns = "/socket/socketRequest")
 public class TokenFilter implements Filter {
 
 	@Override
@@ -59,21 +59,4 @@ public class TokenFilter implements Filter {
 	public void init(FilterConfig arg0) throws ServletException {
 
 	}
-	
-	public static void main(String[] args) {
-		String str = "s305-78e305"; 
-		System.out.println(sublit(str, 305));
-	}
-	
-	public static byte sublit(String str,Integer index){
-		String s = "s"+index;
-		String e = "e" + index;
-		Integer is = str.indexOf(s);
-		str = str.substring(s.length(), str.length());
-		Integer es = str.indexOf(e);
-		str = str.substring(0,es);
-		Byte b = Byte.parseByte(str);
-		return b;
-	}
-
 }

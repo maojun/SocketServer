@@ -1,7 +1,15 @@
 package com.gable.socket.controller;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -13,17 +21,21 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.aliyun.oss.OSSClient;
 import com.gable.socket.bean.JsonReturn;
 import com.gable.socket.bean.SocketBean;
 import com.gable.socket.bean.SocketObject;
 import com.gable.socket.thread.FetchResult;
+import com.gable.socket.thread.FileUploadThread;
 import com.gable.socket.thread.ReadSocketClientResult;
 import com.gable.socket.thread.WriteSocketClientParam;
 import com.gable.socket.utils.InitUtil;
 import com.gable.socket.utils.JsonUtil;
 
+import sun.misc.BASE64Decoder;
 /**
  * 
  * @author mj
@@ -37,6 +49,24 @@ public class ScoketController {
 	// 最大等待时间,默认四秒
 	@Value("${MaxTime:4000}")
 	private Long MaxTime;
+
+	@Value("${FILEURL}")
+	private String FILEURL;
+
+	@Value("${ENDPOINT}")
+	private String ENDPOINT;
+
+	@Value("${ACCESSKEYID}")
+	private String ACCESSKEYID;
+
+	@Value("${ACCESSKEYSECRET}")
+	private String ACCESSKEYSECRET;
+
+	@Value("${BUCKETNAME}")
+	private String BUCKETNAME;
+
+	@Value("${LOCALSAVEPATH}")
+	private String LOCALSAVEPATH;
 
 	@RequestMapping(value = "/socketRequest", produces = "application/json; charset=utf-8")
 	@ResponseBody
@@ -74,7 +104,14 @@ public class ScoketController {
 					log.error("fileAddress为空");
 					return new JsonReturn(0, "fileAddress为空");
 				}
-				map.put("fileAddress", fileAddress);
+				// 将文件替换成中转文件地址
+				// http://xxxx/1.jpg,http://xxxx/2.jpg ---->
+				// D:/gable/1.jpg,D:/gable/2.jpg
+				String localfileAddress = fileAddress.replaceAll(FILEURL, LOCALSAVEPATH);
+				map.put("fileAddress", localfileAddress);
+				// 有文件时需要将文件从al下载下来写到117本地磁盘中
+				InitUtil.executorService.execute(new FileUploadThread(fileAddress, FILEURL, ENDPOINT, ACCESSKEYID,
+						ACCESSKEYSECRET, BUCKETNAME, LOCALSAVEPATH));
 			}
 
 			Enumeration<String> parameterNames = request.getParameterNames();
@@ -90,14 +127,14 @@ public class ScoketController {
 			SocketBean resultScoket = null;
 			// 组装业务数据，发送给客户端
 			// 根据不同的端口，写入对应的socket客户端
-			log.info("befor.size:"+InitUtil.skMap.get(port).size());
+			log.info("befor.size:" + InitUtil.skMap.get(port).size());
 			SocketObject socketObject = InitUtil.getSocketObject(port);
-			log.info("after.size:"+InitUtil.skMap.get(port).size());
+			log.info("after.size:" + InitUtil.skMap.get(port).size());
 			InitUtil.executorService.execute(new WriteSocketClientParam(port, sb, socketObject));
 			// 短暂的间隔一下，保证写入客户端的操作在抓取客户端的操作之前
 			Thread.sleep(100L);
 
-			InitUtil.executorService.execute(new ReadSocketClientResult(port, sb.getUid(), MaxTime,socketObject));
+			InitUtil.executorService.execute(new ReadSocketClientResult(port, sb.getUid(), MaxTime, socketObject));
 			// 短暂的间隔一下，保证抓取客户端的结果在筛选返回结果之前
 			Thread.sleep(100L);
 
@@ -144,5 +181,101 @@ public class ScoketController {
 		json.setRet(0);
 		json.setMsg(result);
 		return json;
+	}
+
+	/**
+	 * 读取文件，将文件流返回
+	 * 
+	 * @param request
+	 * @return
+	 */
+	@RequestMapping(value = "/getBytes", method = RequestMethod.POST)
+	@ResponseBody
+	public String getBytes(HttpServletRequest request) {
+		List<Map<String, String>> resultList = new ArrayList<Map<String, String>>();
+		try {
+			String filePaths = request.getParameter("filePath");
+			String[] fileArray = filePaths.split(",");
+			for (int i = 0; i < fileArray.length; i++) {
+				String filePath = fileArray[i];
+				File file = new File(filePath);
+				FileInputStream fis = new FileInputStream(file);
+				ByteArrayOutputStream bos = new ByteArrayOutputStream(1000);
+				byte[] b = new byte[1000];
+				int n;
+				while ((n = fis.read(b)) != -1) {
+					bos.write(b, 0, n);
+				}
+				fis.close();
+				bos.close();
+				byte[] buffer = bos.toByteArray();
+				String isoString = new String(buffer, "ISO-8859-1");
+				Map<String, String> map = new HashMap<String, String>();
+				filePath = filePath.replace("1497500735358", "1111");
+				map.put(filePath, isoString);
+				resultList.add(map);
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return JsonUtil.toJsonString(resultList);
+	}
+
+	/**
+	 * 接受文件流，将文件上传到阿里云服务器
+	 * 
+	 * @return
+	 */
+	@RequestMapping(value = "/writeFile", method = RequestMethod.POST)
+	@ResponseBody
+	public boolean writeFile(HttpServletRequest request) {
+		String fileInfo = request.getParameter("fileInfo");
+		String key = request.getParameter("fileName");
+		if(StringUtils.isEmpty(fileInfo) || StringUtils.isEmpty(key)){
+			return false;
+		}
+		ByteArrayInputStream byteArrayInputStream = null;
+		OSSClient ossClient = null;
+		try {
+			BASE64Decoder decode = new BASE64Decoder();
+			byte[] bytes = decode.decodeBuffer(fileInfo);
+			ossClient = new OSSClient(ENDPOINT, ACCESSKEYID, ACCESSKEYSECRET);
+			boolean bl = ossClient.doesBucketExist(BUCKETNAME);
+			if (!bl) {
+				ossClient.createBucket(BUCKETNAME);
+			}
+			byteArrayInputStream = new ByteArrayInputStream(bytes);
+			ossClient.putObject(BUCKETNAME, key, byteArrayInputStream);
+
+			if (ExistObject(key, ossClient)) {
+				return false;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				byteArrayInputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			ossClient.shutdown();
+		}
+
+		return false;
+	}
+
+	/**
+	 * 判断当前文件是否存在
+	 * 
+	 * @param key
+	 * @return
+	 */
+	public boolean ExistObject(String key, OSSClient ossClient) {
+		boolean bl = true;
+		bl = ossClient.doesObjectExist(BUCKETNAME, key);
+		ossClient.shutdown();
+		return bl;
 	}
 }
