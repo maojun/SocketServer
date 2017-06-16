@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.aliyun.oss.OSSClient;
+import com.aliyun.oss.model.OSSObject;
 import com.gable.socket.bean.JsonReturn;
 import com.gable.socket.bean.SocketBean;
 import com.gable.socket.bean.SocketObject;
@@ -36,6 +38,7 @@ import com.gable.socket.utils.InitUtil;
 import com.gable.socket.utils.JsonUtil;
 
 import sun.misc.BASE64Decoder;
+import sun.misc.BASE64Encoder;
 /**
  * 
  * @author mj
@@ -97,6 +100,13 @@ public class ScoketController {
 			// 获取所有的业务参数
 			Map<String, Object> map = new HashMap<String, Object>();
 
+
+			Enumeration<String> parameterNames = request.getParameterNames();
+			while (parameterNames.hasMoreElements()) {
+				String paraName = (String) parameterNames.nextElement();
+				map.put(paraName, request.getParameter(paraName));
+			}
+			
 			// 有文件时需要校验文件地址
 			if (haveFile.equals("Y")) {
 				String fileAddress = request.getParameter("fileAddress");
@@ -113,12 +123,7 @@ public class ScoketController {
 				InitUtil.executorService.execute(new FileUploadThread(fileAddress, FILEURL, ENDPOINT, ACCESSKEYID,
 						ACCESSKEYSECRET, BUCKETNAME, LOCALSAVEPATH));
 			}
-
-			Enumeration<String> parameterNames = request.getParameterNames();
-			while (parameterNames.hasMoreElements()) {
-				String paraName = (String) parameterNames.nextElement();
-				map.put(paraName, request.getParameter(paraName));
-			}
+						
 			log.info("_____ScoketController,socketRequest请求参数，body:" + JsonUtil.toJsonString(map));
 
 			// socket传输对象
@@ -211,7 +216,6 @@ public class ScoketController {
 				byte[] buffer = bos.toByteArray();
 				String isoString = new String(buffer, "ISO-8859-1");
 				Map<String, String> map = new HashMap<String, String>();
-				filePath = filePath.replace("1497500735358", "1111");
 				map.put(filePath, isoString);
 				resultList.add(map);
 			}
@@ -277,5 +281,54 @@ public class ScoketController {
 		bl = ossClient.doesObjectExist(BUCKETNAME, key);
 		ossClient.shutdown();
 		return bl;
+	}
+	
+	/**
+	 * 根据文件名从ali云上获取文件，转成流返回
+	 * @return
+	 */
+	@RequestMapping(value = "/fetchFile", method = RequestMethod.POST)
+	@ResponseBody
+	public String fetchFile(HttpServletRequest request){
+		String fileName = request.getParameter("fileName");
+		if(StringUtils.isEmpty(fileName)){
+			return null;
+		}
+		OSSClient ossClient = null;
+		try {
+			//初始化客戶端
+			ossClient = new OSSClient(ENDPOINT,ACCESSKEYID,ACCESSKEYSECRET);
+			//多文件下载，替换文件域名，写入本地磁盘。
+			//http://xxxxx/dispatch/639b566d-f6e2-4b0a-8dfb-1fab4465345b.jpg
+			//替换成  dispatch/639b566d-f6e2-4b0a-8dfb-1fab4465345b.jpg
+			OSSObject ossObject = ossClient.getObject(BUCKETNAME, fileName);
+			log.info("_____文件名称："+fileName);
+			if (ossObject != null) {
+				InputStream in = ossObject.getObjectContent();
+				byte[] bytes = input2byte(in);
+				in.close();
+				BASE64Encoder encode = new BASE64Encoder();
+	            String by = encode.encode(bytes);
+	            return by;
+			}
+		} catch (Exception e) {
+			log.error("_____文件操作失败："+e.toString());
+		}finally{
+			if(ossClient != null){
+				ossClient.shutdown();
+			}
+		}
+		return null;
+	}
+	
+	public final byte[] input2byte(InputStream inStream) throws IOException {
+		ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
+		byte[] buff = new byte[100];
+		int rc = 0;
+		while ((rc = inStream.read(buff, 0, 100)) > 0) {
+			swapStream.write(buff, 0, rc);
+		}
+		byte[] in2b = swapStream.toByteArray();
+		return in2b;
 	}
 }

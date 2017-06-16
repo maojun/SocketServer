@@ -83,7 +83,7 @@ public class FileUploadThread implements Runnable {
 		}
 	}
 
-	public final static byte[] input2byte(InputStream inStream) throws IOException {
+	public final byte[] input2byte(InputStream inStream) throws IOException {
 		ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
 		byte[] buff = new byte[100];
 		int rc = 0;
@@ -94,7 +94,7 @@ public class FileUploadThread implements Runnable {
 		return in2b;
 	}
 	
-	public static List<String> replaceFile(String [] fileArray){
+	public List<String> replaceFile(String [] fileArray){
 		List<String> fileList = new ArrayList<String>();
 		String FILEURL="http://gable-hospital.oss-cn-shanghai.aliyuncs.com/";
 		for (int i = 0; i < fileArray.length; i++) {
