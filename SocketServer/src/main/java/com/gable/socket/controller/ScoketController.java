@@ -123,7 +123,7 @@ public class ScoketController {
 				InitUtil.executorService.execute(new FileUploadThread(fileAddress, FILEURL, ENDPOINT, ACCESSKEYID,
 						ACCESSKEYSECRET, BUCKETNAME, LOCALSAVEPATH));
 			}
-						
+			
 			log.info("_____ScoketController,socketRequest请求参数，body:" + JsonUtil.toJsonString(map));
 
 			// socket传输对象
@@ -237,7 +237,7 @@ public class ScoketController {
 	public boolean writeFile(HttpServletRequest request) {
 		String fileInfo = request.getParameter("fileInfo");
 		String key = request.getParameter("fileName");
-		if(StringUtils.isEmpty(fileInfo) || StringUtils.isEmpty(key)){
+		if (StringUtils.isEmpty(fileInfo) || StringUtils.isEmpty(key)) {
 			return false;
 		}
 		ByteArrayInputStream byteArrayInputStream = null;
@@ -282,45 +282,46 @@ public class ScoketController {
 		ossClient.shutdown();
 		return bl;
 	}
-	
+
 	/**
 	 * 根据文件名从ali云上获取文件，转成流返回
+	 * 
 	 * @return
 	 */
 	@RequestMapping(value = "/fetchFile", method = RequestMethod.POST)
 	@ResponseBody
-	public String fetchFile(HttpServletRequest request){
+	public String fetchFile(HttpServletRequest request) {
 		String fileName = request.getParameter("fileName");
-		if(StringUtils.isEmpty(fileName)){
+		if (StringUtils.isEmpty(fileName)) {
 			return null;
 		}
 		OSSClient ossClient = null;
 		try {
-			//初始化客戶端
-			ossClient = new OSSClient(ENDPOINT,ACCESSKEYID,ACCESSKEYSECRET);
-			//多文件下载，替换文件域名，写入本地磁盘。
-			//http://xxxxx/dispatch/639b566d-f6e2-4b0a-8dfb-1fab4465345b.jpg
-			//替换成  dispatch/639b566d-f6e2-4b0a-8dfb-1fab4465345b.jpg
+			// 初始化客戶端
+			ossClient = new OSSClient(ENDPOINT, ACCESSKEYID, ACCESSKEYSECRET);
+			// 多文件下载，替换文件域名，写入本地磁盘。
+			// http://xxxxx/dispatch/639b566d-f6e2-4b0a-8dfb-1fab4465345b.jpg
+			// 替换成 dispatch/639b566d-f6e2-4b0a-8dfb-1fab4465345b.jpg
 			OSSObject ossObject = ossClient.getObject(BUCKETNAME, fileName);
-			log.info("_____文件名称："+fileName);
+			log.info("_____文件名称：" + fileName);
 			if (ossObject != null) {
 				InputStream in = ossObject.getObjectContent();
 				byte[] bytes = input2byte(in);
 				in.close();
 				BASE64Encoder encode = new BASE64Encoder();
-	            String by = encode.encode(bytes);
-	            return by;
+				String by = encode.encode(bytes);
+				return by;
 			}
 		} catch (Exception e) {
-			log.error("_____文件操作失败："+e.toString());
-		}finally{
-			if(ossClient != null){
+			log.error("_____文件操作失败：" + e.toString());
+		} finally {
+			if (ossClient != null) {
 				ossClient.shutdown();
 			}
 		}
 		return null;
 	}
-	
+
 	public final byte[] input2byte(InputStream inStream) throws IOException {
 		ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
 		byte[] buff = new byte[100];
