@@ -40,8 +40,8 @@ public class Application extends SpringBootServletInitializer implements Initial
 		// hospitalId_socket端口map
 		String[] portArray = port.split(",");
 		InitUtil.hospitalIdPortMap = mappingHospital(portArray);
-		// 初始化无界线程池，JVM自动创建线程，回收线程
-		InitUtil.executorService = Executors.newCachedThreadPool();
+		// 初始化线程池，JVM自动创建线程，回收线程
+		InitUtil.executorService = Executors.newFixedThreadPool(40);
 
 		InitUtil.resultMap = new HashMap<UUID, SocketBean>();
 
